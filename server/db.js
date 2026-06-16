@@ -2,79 +2,12 @@ import fs from 'fs';
 import path from 'path';
 import bcrypt from 'bcryptjs';
 
-export interface User {
-  id: string;
-  email: string;
-  passwordHash: string;
-  name: string;
-  role: 'Admin' | 'Employee';
-  employeeId?: string; // Links to employee record
-}
-
-export interface Employee {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  role: string;
-  departmentId: string;
-  salary: number;
-  status: 'Active' | 'Inactive' | 'On Leave';
-  joinDate: string;
-  address: string;
-  performanceScore: number; // 1-5 Scale
-}
-
-export interface Department {
-  id: string;
-  name: string;
-  managerId?: string; // Employee ID of manager
-  managerName?: string;
-  budget: number;
-  location: string;
-  description: string;
-}
-
-export interface Attendance {
-  id: string;
-  employeeId: string;
-  employeeName: string;
-  date: string; // YYYY-MM-DD
-  status: 'Present' | 'Absent' | 'Leave' | 'Late';
-  clockIn?: string; // HH:MM
-  clockOut?: string; // HH:MM
-  leaveReason?: string;
-}
-
-export interface Payroll {
-  id: string;
-  employeeId: string;
-  employeeName: string;
-  month: string; // e.g. "June"
-  year: number; // e.g. 2026
-  baseSalary: number;
-  bonuses: number;
-  deductions: number;
-  netSalary: number;
-  status: 'Paid' | 'Pending';
-  payoutDate?: string; // YYYY-MM-DD
-}
-
-export interface DatabaseSchema {
-  users: User[];
-  employees: Employee[];
-  departments: Department[];
-  attendance: Attendance[];
-  payroll: Payroll[];
-}
-
 const DB_FILE_PATH = path.join(process.cwd(), 'db.json');
 
-// Standard Synchronous JSON DB helpers
 export class JSONDatabase {
-  private static cache: DatabaseSchema | null = null;
+  static cache = null;
 
-  public static load(): DatabaseSchema {
+  static load() {
     if (this.cache) {
       return this.cache;
     }
@@ -83,7 +16,7 @@ export class JSONDatabase {
       try {
         const raw = fs.readFileSync(DB_FILE_PATH, 'utf-8');
         this.cache = JSON.parse(raw);
-        return this.cache!;
+        return this.cache;
       } catch (e) {
         console.error('Error loading DB file, re-initializing storage...', e);
       }
@@ -96,12 +29,12 @@ export class JSONDatabase {
     return db;
   }
 
-  public static save(db: DatabaseSchema) {
+  static save(db) {
     this.cache = db;
     this.saveToDisk(db);
   }
 
-  private static saveToDisk(db: DatabaseSchema) {
+  static saveToDisk(db) {
     try {
       fs.writeFileSync(DB_FILE_PATH, JSON.stringify(db, null, 2), 'utf-8');
     } catch (e) {
@@ -109,13 +42,12 @@ export class JSONDatabase {
     }
   }
 
-  private static getSeedData(): DatabaseSchema {
-    // Generate secure password hashes synchronously for initial seeds
+  static getSeedData() {
     const adminPasswordHash = bcrypt.hashSync('admin123', 10);
     const employeePasswordHash = bcrypt.hashSync('employee123', 10);
     const hash3 = bcrypt.hashSync('pass123', 10);
 
-    const departments: Department[] = [
+    const departments = [
       {
         id: 'dept-1',
         name: 'Engineering',
@@ -154,7 +86,7 @@ export class JSONDatabase {
       }
     ];
 
-    const employees: Employee[] = [
+    const employees = [
       {
         id: 'emp-1',
         name: 'System Admin',
@@ -235,7 +167,7 @@ export class JSONDatabase {
       }
     ];
 
-    const users: User[] = [
+    const users = [
       {
         id: 'usr-1',
         email: 'admin@company.com',
@@ -262,9 +194,7 @@ export class JSONDatabase {
       }
     ];
 
-    // Seed attendance records for June 10, June 11, June 12, June 15, June 16, 2026
-    const attendance: Attendance[] = [
-      // June 15
+    const attendance = [
       { id: 'att-1', employeeId: 'emp-1', employeeName: 'System Admin', date: '2026-06-15', status: 'Present', clockIn: '08:45', clockOut: '17:30' },
       { id: 'att-2', employeeId: 'emp-2', employeeName: 'Sarah Connor', date: '2026-06-15', status: 'Present', clockIn: '09:00', clockOut: '18:15' },
       { id: 'att-3', employeeId: 'emp-3', employeeName: 'John Doe', date: '2026-06-15', status: 'Present', clockIn: '09:12', clockOut: '17:45' },
@@ -272,7 +202,6 @@ export class JSONDatabase {
       { id: 'att-5', employeeId: 'emp-5', employeeName: 'Pam Beesly', date: '2026-06-15', status: 'Leave', leaveReason: 'Maternity Leave' },
       { id: 'att-6', employeeId: 'emp-6', employeeName: 'Jim Halpert', date: '2026-06-15', status: 'Present', clockIn: '08:55', clockOut: '17:05' },
 
-      // June 16 (Current local day)
       { id: 'att-7', employeeId: 'emp-1', employeeName: 'System Admin', date: '2026-06-16', status: 'Present', clockIn: '08:30', clockOut: '17:00' },
       { id: 'att-8', employeeId: 'emp-2', employeeName: 'Sarah Connor', date: '2026-06-16', status: 'Present', clockIn: '08:50', clockOut: '18:00' },
       { id: 'att-9', employeeId: 'emp-3', employeeName: 'John Doe', date: '2026-06-16', status: 'Present', clockIn: '09:05', clockOut: '17:30' },
@@ -281,12 +210,12 @@ export class JSONDatabase {
       { id: 'att-12', employeeId: 'emp-6', employeeName: 'Jim Halpert', date: '2026-06-16', status: 'Absent' }
     ];
 
-    const payroll: Payroll[] = [
+    const payroll = [
       { id: 'pay-1', employeeId: 'emp-1', employeeName: 'System Admin', month: 'May', year: 2026, baseSalary: 9583.33, bonuses: 500, deductions: 250, netSalary: 9833.33, status: 'Paid', payoutDate: '2026-05-30' },
       { id: 'pay-2', employeeId: 'emp-2', employeeName: 'Sarah Connor', month: 'May', year: 2026, baseSalary: 12083.33, bonuses: 1200, deductions: 400, netSalary: 12883.33, status: 'Paid', payoutDate: '2026-05-30' },
       { id: 'pay-3', employeeId: 'emp-3', employeeName: 'John Doe', month: 'May', year: 2026, baseSalary: 7083.33, bonuses: 0, deductions: 180, netSalary: 6903.33, status: 'Paid', payoutDate: '2026-05-30' },
       { id: 'pay-4', employeeId: 'emp-4', employeeName: 'Michael Scott', month: 'May', year: 2026, baseSalary: 6250.00, bonuses: 200, deductions: 150, netSalary: 6300.00, status: 'Paid', payoutDate: '2026-05-30' },
-      { id: 'pay-5', employeeId: 'emp-5', employeeName: 'Pam Beesly', month: 'May', year: 2026, baseSalary: 5166.67, bonuses: 0, deductions: 5166.67, netSalary: 0, status: 'Paid', payoutDate: '2026-05-30' }, // Complete leave deduction or similar
+      { id: 'pay-5', employeeId: 'emp-5', employeeName: 'Pam Beesly', month: 'May', year: 2026, baseSalary: 5166.67, bonuses: 0, deductions: 5166.67, netSalary: 0, status: 'Paid', payoutDate: '2026-05-30' },
       { id: 'pay-6', employeeId: 'emp-6', employeeName: 'Jim Halpert', month: 'May', year: 2026, baseSalary: 6833.33, bonuses: 800, deductions: 200, netSalary: 7433.33, status: 'Paid', payoutDate: '2026-05-30' },
 
       { id: 'pay-7', employeeId: 'emp-1', employeeName: 'System Admin', month: 'June', year: 2026, baseSalary: 9583.33, bonuses: 600, deductions: 250, netSalary: 9933.33, status: 'Pending' },

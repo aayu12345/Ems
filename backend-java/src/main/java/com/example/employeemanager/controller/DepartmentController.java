@@ -1,7 +1,7 @@
 package com.example.employeemanager.controller;
 
 import com.example.employeemanager.model.Department;
-import com.example.employeemanager.repository.DepartmentRepository;
+import com.example.employeemanager.service.DepartmentService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -14,65 +14,53 @@ import java.util.Map;
 @RequestMapping("/api/departments")
 public class DepartmentController {
 
-    private final DepartmentRepository departmentRepository;
+    private final DepartmentService departmentService;
 
-    public DepartmentController(DepartmentRepository departmentRepository) {
-        this.departmentRepository = departmentRepository;
+    public DepartmentController(DepartmentService departmentService) {
+        this.departmentService = departmentService;
     }
 
     @GetMapping
     public ResponseEntity<List<Department>> getAllDepartments() {
-        return ResponseEntity.ok(departmentRepository.findAll());
+        return ResponseEntity.ok(departmentService.getAllDepartments());
     }
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> createDepartment(@RequestBody Department department) {
-        if (departmentRepository.existsById(department.getId())) {
+        try {
+            Department saved = departmentService.createDepartment(department);
+            return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+        } catch (IllegalArgumentException e) {
             return ResponseEntity
                     .status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("error", "Department code " + department.getId() + " already exists."));
+                    .body(Map.of("error", e.getMessage()));
         }
-
-        Department saved = departmentRepository.save(department);
-        return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> updateDepartment(@PathVariable String id, @RequestBody Department updatedDetails) {
-        Department department = departmentRepository.findById(id)
-                .orElse(null);
-
-        if (department == null) {
+        try {
+            Department saved = departmentService.updateDepartment(id, updatedDetails);
+            return ResponseEntity.ok(saved);
+        } catch (IllegalArgumentException e) {
             return ResponseEntity
                     .status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("error", "Department not found"));
+                    .body(Map.of("error", e.getMessage()));
         }
-
-        department.setName(updatedDetails.getName());
-        department.setManager(updatedDetails.getManager());
-        department.setBudget(updatedDetails.getBudget());
-        department.setLocation(updatedDetails.getLocation());
-        department.setHeadcount(updatedDetails.getHeadcount());
-
-        Department saved = departmentRepository.save(department);
-        return ResponseEntity.ok(saved);
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> deleteDepartment(@PathVariable String id) {
-        Department department = departmentRepository.findById(id)
-                .orElse(null);
-
-        if (department == null) {
+        try {
+            departmentService.deleteDepartment(id);
+            return ResponseEntity.ok(Map.of("success", true, "message", "Department record removed successfully"));
+        } catch (IllegalArgumentException e) {
             return ResponseEntity
                     .status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("error", "Department not found"));
+                    .body(Map.of("error", e.getMessage()));
         }
-
-        departmentRepository.delete(department);
-        return ResponseEntity.ok(Map.of("success", true, "message", "Department record removed successfully"));
     }
 }

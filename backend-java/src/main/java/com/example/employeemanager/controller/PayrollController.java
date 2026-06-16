@@ -1,35 +1,28 @@
 package com.example.employeemanager.controller;
 
-import com.example.employeemanager.model.Employee;
 import com.example.employeemanager.model.Payroll;
-import com.example.employeemanager.repository.EmployeeRepository;
-import com.example.employeemanager.repository.PayrollRepository;
+import com.example.employeemanager.service.PayrollService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/payroll")
 public class PayrollController {
 
-    private final PayrollRepository payrollRepository;
-    private final EmployeeRepository employeeRepository;
+    private final PayrollService payrollService;
 
-    public PayrollController(PayrollRepository payrollRepository,
-                             EmployeeRepository employeeRepository) {
-        this.payrollRepository = payrollRepository;
-        this.employeeRepository = employeeRepository;
+    public PayrollController(PayrollService payrollService) {
+        this.payrollService = payrollService;
     }
 
     @GetMapping
     public ResponseEntity<List<Payroll>> getAllPayroll() {
-        return ResponseEntity.ok(payrollRepository.findAll());
+        return ResponseEntity.ok(payrollService.getAllPayroll());
     }
 
     @PostMapping("/generate")
@@ -44,73 +37,33 @@ public class PayrollController {
                     .body(Map.of("error", "Generating parameters (month and year) are missing"));
         }
 
-        int year = Integer.parseInt(yearObj.toString());
-        List<Employee> employees = employeeRepository.findAll();
-        int createdCount = 0;
-
-        for (Employee emp : employees) {
-            if (!emp.getStatus().equalsIgnoreCase("Active")) {
-                continue; // skip inactive staff profiles
-            }
-
-            // Check if record exists
-            boolean exists = payrollRepository.findByEmployeeIdAndMonthAndYear(emp.getId(), month, year).isPresent();
-            if (!exists) {
-                double base = emp.getSalary();
-                Payroll slip = new Payroll(
-                        UUID.randomUUID().toString(),
-                        emp.getId(),
-                        emp.getName(),
-                        base,
-                        0.0,
-                        0.0,
-                        base,
-                        month,
-                        year,
-                        "Pending",
-                        null
-                );
-                payrollRepository.save(slip);
-                createdCount++;
-            }
+        try {
+            int year = Integer.parseInt(yearObj.toString());
+            payrollService.generatePayroll(month, year);
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Payroll logs successfully calculated for " + month + " " + year
+            ));
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", e.getMessage()));
         }
-
-        return ResponseEntity.ok(Map.of(
-                "success", true,
-                "message", "Payroll logs successfully calculated. " + createdCount + " new entries added for " + month + " " + year
-        ));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<?> updatePayroll(@PathVariable String id, @RequestBody Map<String, Object> body) {
-        Payroll slip = payrollRepository.findById(id)
-                .orElse(null);
-
-        if (slip == null) {
+        try {
+            Payroll saved = payrollService.updatePayroll(id, body);
+            return ResponseEntity.ok(saved);
+        } catch (IllegalArgumentException e) {
             return ResponseEntity
                     .status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("error", "Payslip reference code not found"));
+                    .body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", e.getMessage()));
         }
-
-        if (body.containsKey("bonuses")) {
-            slip.setBonuses(Double.parseDouble(body.get("bonuses").toString()));
-        }
-        if (body.containsKey("deductions")) {
-            slip.setDeductions(Double.parseDouble(body.get("deductions").toString()));
-        }
-        if (body.containsKey("status")) {
-            String status = (String) body.get("status");
-            slip.setStatus(status);
-            if (status.equalsIgnoreCase("Paid")) {
-                slip.setPayoutDate(LocalDate.now().toString());
-            }
-        }
-
-        // Recalculate net take home salary
-        double net = slip.getBaseSalary() + slip.getBonuses() - slip.getDeductions();
-        slip.setNetSalary(net > 0 ? net : 0.0);
-
-        Payroll saved = payrollRepository.save(slip);
-        return ResponseEntity.ok(saved);
     }
 }
