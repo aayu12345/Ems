@@ -1,0 +1,6 @@
+{
+  "name": "Employee Management System",
+  "description": "A comprehensive full-stack portal to manage employee records, departments, attendance tracking, and payroll with secure JWT authentication and role-based access controls.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
